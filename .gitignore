@@ -9,6 +9,18 @@ venv/
 dist/
 build/
 
+# uv
+uv.lock
+.python-version
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Alembic
+backend/alembic/versions/*.pyc
+
 # Node
 node_modules/
 

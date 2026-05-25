@@ -43,6 +43,13 @@ The app is a single-file vanilla-JS SPA (`frontend/app.js`) with three load-bear
 
 These checks are UX-only — when a real backend lands, it must re-enforce them server-side.
 
+### UV package manager
+
+'Use uv as the package manager. All Python commands run
+through uv — uv pip install for packages, uv run pytest for tests,
+uv run python for scripts. Never use pip or python directly.
+
+
 ## Code Style
 - Python: snake_case for functions and variables
 - Always use type hints
