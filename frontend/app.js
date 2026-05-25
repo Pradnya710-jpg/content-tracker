@@ -492,5 +492,4 @@ function init() {
   renderBoard();
   showToast('Telusko Workflow Engine ready.', 'info');
 }
-
 document.addEventListener('DOMContentLoaded', init);
