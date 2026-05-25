@@ -1,51 +1,64 @@
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
 
-from app.core.config import settings
-from app.core.database import Base  # noqa: F401 — imports all models via __init__
-import app.models  # noqa: F401 — ensure all models are registered
-
+# ---------------------------------------------------------------------------
+# Alembic config — must be the first thing set up so logging works before
+# any app code is imported.
+# ---------------------------------------------------------------------------
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# ---------------------------------------------------------------------------
+# App imports — after logging so handler config is already in place.
+# `import app.models` is the side-effect import that registers every model
+# class with Base.metadata so autogenerate can diff them.
+# ---------------------------------------------------------------------------
+from app.core.database import Base, engine  # noqa: E402
+import app.models  # noqa: F401, E402
+
 target_metadata = Base.metadata
 
 
+# ---------------------------------------------------------------------------
+# Offline mode — produces a .sql script without touching the database.
+# ---------------------------------------------------------------------------
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    from app.core.config import settings
+
     context.configure(
-        url=url,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,   # SQLite does not support ALTER TABLE natively
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
-def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata)
+# ---------------------------------------------------------------------------
+# Online mode — runs against the live async engine.
+# ---------------------------------------------------------------------------
+def do_run_migrations(connection) -> None:
+    """Called synchronously inside connection.run_sync()."""
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=True,   # SQLite does not support ALTER TABLE natively
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_migrations_online() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-    async with connectable.connect() as connection:
+    """Reuse the app engine — single source of truth for DB URL and pool."""
+    async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
-    await connectable.dispose()
+    await engine.dispose()
 
 
 if context.is_offline_mode():
