@@ -1,6 +1,8 @@
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.tasks import router as tasks_router
 from app.core.config import settings
 
@@ -20,18 +22,21 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:8000",
         "http://127.0.0.1:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
         "http://localhost:5500",
         "http://127.0.0.1:5500",
         "null",                     # file:// origin sent by browsers
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["*"],            # includes Authorization
 )
 
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+app.include_router(auth_router)
 app.include_router(tasks_router)
 
 
@@ -41,3 +46,13 @@ app.include_router(tasks_router)
 @app.get("/health", tags=["meta"])
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def start() -> None:
+    """Entry point used by `uv run start` — always binds to settings.port (default 8000)."""
+    uvicorn.run(
+        "app.main:app",
+        host="127.0.0.1",
+        port=settings.port,
+        reload=True,
+    )
